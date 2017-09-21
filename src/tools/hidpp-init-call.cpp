@@ -37,7 +37,7 @@ extern "C" {
 std::unique_ptr<HIDPP::SimpleDispatcher> dispatcher;
 std::unique_ptr<HIDPP20::Device> dev;
 
-void handlePairEvent (const int feature_index, const int function, const std::vector<uint8_t> params, const HIDPP::Report &event)
+bool handlePairEvent (const int feature_index, const int function, const std::vector<uint8_t> params, const HIDPP::Report &event)
 {
 	try {
 		dev.get ()->callFunction (static_cast<uint8_t> (feature_index),
@@ -51,6 +51,7 @@ void handlePairEvent (const int feature_index, const int function, const std::ve
 	catch (HIDPP20::Error e) {
 		fprintf (stderr, "Error code %d: %s\n", e.errorCode (), e.what ());
 	}
+	return true;
 }
 
 void sigint (int)
@@ -133,7 +134,7 @@ int main (int argc, char *argv[])
 	sigaction (SIGINT, &sa, &oldsa);
 
 	uint8_t feature = 0x41;
-	std::function<void (const HIDPP::Report &)> fn = std::bind (handlePairEvent, feature_index, function, params, std::placeholders::_1);
+	std::function<bool (const HIDPP::Report &)> fn = std::bind (handlePairEvent, feature_index, function, params, std::placeholders::_1);
 	dispatcher.get ()->registerEventHandler (device_index, feature, fn);
 
 	dispatcher.get ()->listen ();
