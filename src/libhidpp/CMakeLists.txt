@@ -2,10 +2,11 @@ cmake_minimum_required(VERSION 2.8)
 project(libhidpp)
 
 set(LIBHIDPP_SOURCES
-	misc/HIDRaw.cpp
 	misc/Log.cpp
 	misc/CRC.cpp
-	misc/UsageStrings.cpp
+	hid/RawDevice_${HID_BACKEND}.cpp
+	hid/DeviceMonitor_${HID_BACKEND}.cpp
+	hid/UsageStrings.cpp
 	hidpp/Dispatcher.cpp
 	hidpp/SimpleDispatcher.cpp
 	hidpp/DispatcherThread.cpp
@@ -56,8 +57,21 @@ set(LIBHIDPP_SOURCES
 	hidpp20/MacroFormat.cpp
 )
 
+if("${HID_BACKEND}" STREQUAL "windows")
+	set(LIBHIDPP_SOURCES ${LIBHIDPP_SOURCES}
+		hid/windows/error_category.cpp
+		hid/windows/DeviceData.cpp
+	)
+endif()
+
 include_directories(.)
 add_library(hidpp SHARED ${LIBHIDPP_SOURCES})
+if("${HID_BACKEND}" STREQUAL "linux")
+	target_include_directories(hidpp PUBLIC ${LIBUDEV_INCLUDE_DIRECTORIES})
+	target_link_libraries(hidpp ${LIBUDEV_LIBRARIES})
+elseif("${HID_BACKEND}" STREQUAL "windows")
+	target_link_libraries(hidpp setupapi hid cfgmgr32)
+endif()
 
 install(DIRECTORY "./" DESTINATION "include/hidpp"
 	FILES_MATCHING PATTERN "*.h")

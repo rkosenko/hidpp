@@ -16,8 +16,8 @@
  *
  */
 
-#ifndef HIDPP20_PROFILE_FORMAT_H
-#define HIDPP20_PROFILE_FORMAT_H
+#ifndef LIBHIDPP_HIDPP20_PROFILE_FORMAT_H
+#define LIBHIDPP_HIDPP20_PROFILE_FORMAT_H
 
 #include <hidpp/AbstractProfileFormat.h>
 #include <hidpp20/IOnboardProfiles.h>
@@ -50,7 +50,7 @@ private:
 	static HIDPP::ComposedSetting readRGBEffect (std::vector<uint8_t>::const_iterator begin);
 	static void writeRGBEffect (std::vector<uint8_t>::iterator begin, const HIDPP::ComposedSetting &settings);
 
-	static const std::map<IOnboardProfiles::ProfileFormat, size_t> ProfileLength;
+	static const std::map<uint8_t, size_t> ProfileLength;
 	static constexpr unsigned int MaxButtonCount = 16;
 	static constexpr unsigned int MaxModeCount = 5;
 

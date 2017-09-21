@@ -23,17 +23,18 @@
 
 #include "common/common.h"
 #include "common/CommonOptions.h"
+#include "common/EventQueue.h"
 
 extern "C" {
 #include <unistd.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <string.h>
-#include <libudev.h>
 #include <linux/uinput.h>
 }
 
 #include <misc/Log.h>
+#include <hid/DeviceMonitor.h>
 #include <hidpp/DispatcherThread.h>
 #include <hidpp10/Device.h>
 #include <hidpp10/defs.h>
@@ -41,140 +42,48 @@ extern "C" {
 #include <hidpp20/Device.h>
 #include <hidpp20/ITouchpadRawXY.h>
 
-class DeviceMonitor
-{
-	int _pipe[2];
-
-public:
-	DeviceMonitor ()
-	{
-		if (-1 == pipe (_pipe))
-			throw std::system_error (errno, std::system_category (), "pipe");
-	}
-
-	virtual ~DeviceMonitor ()
-	{
-		for (int i = 0; i < 2; ++i)
-			close (_pipe[i]);
-	}
-
-	void monitor ()
-	{
-		int ret;
-
-		struct udev *ctx = udev_new ();
-		if (!ctx)
-			throw std::runtime_error ("udev_new failed");
-
-		struct udev_monitor *monitor = udev_monitor_new_from_netlink (ctx, "udev");
-		if (!monitor)
-			throw std::runtime_error ("ude_monitor_new_from_netlink failed");
-		if (0 != (ret = udev_monitor_filter_add_match_subsystem_devtype (monitor, "hidraw", nullptr)))
-			throw std::system_error (-ret, std::system_category (), "udev_monitor_filter_add_match_subsystem_devtype");
-		if (0 != (ret = udev_monitor_enable_receiving (monitor)))
-			throw std::system_error (-ret, std::system_category (), "udev_monitor_enable_receiving");
-
-		struct udev_enumerate *enumerator = udev_enumerate_new (ctx);
-		if (!enumerator)
-			throw std::runtime_error ("udev_enumerate_new failed");
-		if (0 != (ret = udev_enumerate_add_match_subsystem (enumerator, "hidraw")))
-			throw std::system_error (-ret, std::system_category (), "udev_enumerate_add_match_subsystem");
-		if (0 != (ret = udev_enumerate_scan_devices (enumerator)))
-			throw std::system_error (-ret, std::system_category (), "udev_enumerate_scan_devices");
-
-		struct udev_list_entry *current;
-		udev_list_entry_foreach (current, udev_enumerate_get_list_entry (enumerator)) {
-			struct udev_device *device = udev_device_new_from_syspath (ctx, udev_list_entry_get_name (current));
-			addDevice (udev_device_get_devnode (device));
-			udev_device_unref (device);
-		}
-		udev_enumerate_unref (enumerator);
-
-		int fd = udev_monitor_get_fd (monitor);
-		while (true) {
-			fd_set fds;
-			FD_ZERO (&fds);
-			FD_SET (_pipe[0], &fds);
-			FD_SET (fd, &fds);
-			if (-1 == select (std::max (_pipe[0], fd)+1, &fds, nullptr, nullptr, nullptr)) {
-				if (errno == EINTR)
-					continue;
-				throw std::system_error (errno, std::system_category (), "select");
-			}
-			if (FD_ISSET (fd, &fds)) {
-				struct udev_device *device = udev_monitor_receive_device (monitor);
-				std::string action = udev_device_get_action (device);
-				if (action == "add")
-					addDevice (udev_device_get_devnode (device));
-				else if (action == "remove")
-					removeDevice (udev_device_get_devnode (device));
-				udev_device_unref (device);
-			}
-			if (FD_ISSET (_pipe[0], &fds)) {
-				char c;
-				if (-1 == read (_pipe[0], &c, sizeof (char)))
-					throw std::system_error (errno, std::system_category (), "read pipe");
-				break;
-			}
-		}
-		udev_monitor_unref (monitor);
-
-		udev_unref (ctx);
-	}
-
-	void stop ()
-	{
-		char c = 0;
-		if (-1 == write (_pipe[1], &c, sizeof (char)))
-			throw std::system_error (errno, std::system_category (), "write pipe");
-	}
-
-protected:
-	virtual void addDevice (const char *node) = 0;
-	virtual void removeDevice (const char *node) = 0;
-
-};
+EventQueue<std::function<void ()>> task_queue;
 
 class Driver
 {
-	HIDPP::DispatcherThread *_dispatcher;
+	HIDPP::Dispatcher *_dispatcher;
 	EventQueue<HIDPP::Report> _queue;
-	std::vector<HIDPP::DispatcherThread::listener_iterator> _iterators;
-	std::thread _thread;
+	std::vector<HIDPP::Dispatcher::listener_iterator> _iterators;
 public:
-	Driver (HIDPP::DispatcherThread *dispatcher):
-		_dispatcher (dispatcher),
-		_thread (std::bind (&Driver::run, this))
+	Driver (HIDPP::Dispatcher *dispatcher):
+		_dispatcher (dispatcher)
 	{
 	}
 
 	virtual ~Driver ()
 	{
 		for (auto it: _iterators)
-			_dispatcher->unregisterEventQueue (it);
-		_queue.interrupt ();
-		_thread.join ();
+			_dispatcher->unregisterEventHandler (it);
 	}
 
 protected:
-	HIDPP::DispatcherThread *dispatcher ()
+	HIDPP::Dispatcher *dispatcher ()
 	{
 		return _dispatcher;
 	}
 
-	void addEvent (HIDPP::DeviceIndex index, uint8_t sub_id)
+	void addEvent (HIDPP::DeviceIndex index, uint8_t sub_id, bool direct = false)
 	{
-		_iterators.push_back (_dispatcher->registerEventQueue (index, sub_id, &_queue));
+		auto it = _dispatcher->registerEventHandler (index, sub_id, (direct ?
+			(HIDPP::Dispatcher::event_handler) [this] (const HIDPP::Report &report) {
+				event (report);
+				return true;
+			}
+			:
+			(HIDPP::Dispatcher::event_handler) [this] (const HIDPP::Report &report) {
+				task_queue.push (std::bind (&Driver::event, this, report));
+				return true;
+			}
+		));
+		_iterators.push_back (it);
 	}
 
 	virtual void event (const HIDPP::Report &report) = 0;
-
-private:
-	void run ()
-	{
-		while (auto opt = _queue.pop ())
-			event (opt.value ());
-	}
 };
 
 static void setBit (int fd, int request, int code)
@@ -271,7 +180,7 @@ class TouchpadDriver: public Driver
 		}
 	} st_state;
 public:
-	TouchpadDriver (HIDPP::DispatcherThread *dispatcher, HIDPP::DeviceIndex index):
+	TouchpadDriver (HIDPP::Dispatcher *dispatcher, HIDPP::DeviceIndex index):
 		Driver (dispatcher),
 		_dev (dispatcher, index),
 		_itrxy (&_dev),
@@ -322,7 +231,7 @@ public:
 		}
 
 		printf ("Added touchpad device: %s\n", _dev.name ().c_str ());
-		addEvent (index, _itrxy.index ());
+		addEvent (index, _itrxy.index (), true);
 		_itrxy.setTouchpadRawMode (true);
 	}
 
@@ -361,7 +270,7 @@ class ReceiverDriver: public Driver
 	HIDPP10::Device _dev;
 	std::map<HIDPP::DeviceIndex, TouchpadDriver> _drivers;
 public:
-	ReceiverDriver (HIDPP::DispatcherThread *dispatcher):
+	ReceiverDriver (HIDPP::Dispatcher *dispatcher):
 		Driver (dispatcher),
 		_dev (dispatcher)
 	{
@@ -407,52 +316,68 @@ private:
 	}
 };
 
-class MyMonitor: public DeviceMonitor
+class MyMonitor: public HID::DeviceMonitor
 {
-	std::map<std::string, HIDPP::DispatcherThread> _nodes;
-	std::map<std::string, std::unique_ptr<Driver>> _drivers;
-public:
-	void addDevice (const char *node)
+	struct node
 	{
-		std::map<std::string, HIDPP::DispatcherThread>::iterator it;
+		HIDPP::DispatcherThread dispatcher;
+		std::thread thread;
+		std::unique_ptr<Driver> driver;
+
+		node (const char *path):
+			dispatcher (path),
+			thread (std::bind (&HIDPP::DispatcherThread::run, &dispatcher))
+		{
+		}
+
+		~node ()
+		{
+			driver.reset ();
+			dispatcher.stop ();
+			thread.join ();
+		}
+	};
+	std::map<std::string, node> _nodes;
+public:
+	void addDevice (const char *path)
+	{
+		std::map<std::string, node>::iterator it;
 		try {
-			it = _nodes.emplace (node, node).first;
+			it = _nodes.emplace (path, path).first;
 		}
 		catch (std::exception &e) {
-			Log::debug () << "Ignored device " << node << ": " << e.what () << std::endl;
+			Log::debug () << "Ignored device " << path << ": " << e.what () << std::endl;
 			return;
 		}
+		auto &node = it->second;
 		try {
-			_drivers.emplace (node, new ReceiverDriver (&it->second));
+			node.driver = std::make_unique<ReceiverDriver> (&node.dispatcher);
 			return;
 		}
 		catch (std::exception &e) {
-			Log::debug () << "Device " << node << " is not a receiver: " << e.what () << std::endl;
+			Log::debug () << "Device " << path << " is not a receiver: " << e.what () << std::endl;
 		}
 		for (HIDPP::DeviceIndex index: { HIDPP::DefaultDevice, HIDPP::CordedDevice }) {
 			try {
-				_drivers.emplace (node, new TouchpadDriver (&it->second, index));
+				node.driver = std::make_unique<TouchpadDriver> (&node.dispatcher, index);
 				return;
 			}
 			catch (std::exception &e) {
-				Log::debug () << "Device " << node << "/" << index << " is not a touchpad device: " << e.what () << std::endl;
+				Log::debug () << "Device " << path << "/" << index << " is not a touchpad device: " << e.what () << std::endl;
 			}
 		}
 		_nodes.erase (it);
 	}
 
-	void removeDevice (const char *node)
+	void removeDevice (const char *path)
 	{
-		_drivers.erase (node);
-		_nodes.erase (node);
+		_nodes.erase (path);
 	}
 };
 
-MyMonitor *monitor;
-
 void sigint (int)
 {
-	monitor->stop ();
+	task_queue.interrupt ();
 }
 
 int main (int argc, char *argv[])
@@ -467,17 +392,21 @@ int main (int argc, char *argv[])
 	if (!Option::processOptions (argc, argv, options, first_arg))
 		return EXIT_FAILURE;
 
-	monitor = new MyMonitor;
+	MyMonitor monitor;
+	std::thread monitor_thread (std::bind (&HID::DeviceMonitor::run, &monitor));
 
 	struct sigaction sa, oldsa;
 	memset (&sa, 0, sizeof (struct sigaction));
 	sa.sa_handler = sigint;
 	sigaction (SIGINT, &sa, &oldsa);
 
-	monitor->monitor ();
+	while (auto task = task_queue.pop ())
+		task.value () ();
 
 	sigaction (SIGINT, &oldsa, nullptr);
-	delete monitor;
+
+	monitor.stop ();
+	monitor_thread.join ();
 
 	return EXIT_SUCCESS;
 }

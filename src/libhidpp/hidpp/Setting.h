@@ -16,8 +16,8 @@
  *
  */
 
-#ifndef HIDPP_SETTING_H
-#define HIDPP_SETTING_H
+#ifndef LIBHIDPP_HIDPP_SETTING_H
+#define LIBHIDPP_HIDPP_SETTING_H
 
 #include <vector>
 #include <map>
@@ -121,6 +121,11 @@ public:
 
 	Setting convertFromString (const std::string &str) const;
 	Setting defaultValue () const;
+
+	Setting::Type type () const;
+	std::pair<int, int> integerRange () const;
+	unsigned int LEDCount () const;
+	const EnumDesc &enumDesc () const;
 
 	bool isComposed () const;
 	const_iterator begin () const;

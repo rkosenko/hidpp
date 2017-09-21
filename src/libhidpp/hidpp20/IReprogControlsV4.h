@@ -16,8 +16,8 @@
  *
  */
 
-#ifndef HIDPP20_IREPROGCONTROLSV4_H
-#define HIDPP20_IREPROGCONTROLSV4_H
+#ifndef LIBHIDPP_HIDPP20_IREPROGCONTROLSV4_H
+#define LIBHIDPP_HIDPP20_IREPROGCONTROLSV4_H
 
 #include <hidpp20/FeatureInterface.h>
 
@@ -116,6 +116,14 @@ public:
 	 * \see ControlReportingFlags.
 	 */
 	void setControlReporting (uint16_t control_id, uint8_t flags, uint16_t remap);
+
+	static std::vector<uint16_t> divertedButtonEvent (const HIDPP::Report &event);
+
+	struct Move
+	{
+		int16_t x, y;
+	};
+	static Move divertedRawXYEvent (const HIDPP::Report &event);
 };
 
 }

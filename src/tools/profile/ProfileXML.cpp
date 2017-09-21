@@ -20,11 +20,12 @@
 
 #include "MacroText.h"
 
-#include <misc/UsageStrings.h>
+#include <hid/UsageStrings.h>
 #include <misc/Log.h>
 #include <sstream>
 
 using namespace HIDPP;
+using namespace HID;
 using namespace tinyxml2;
 
 ProfileXML::ProfileXML (const AbstractProfileFormat *profile_format,
@@ -190,7 +191,7 @@ void readButton (const XMLElement *element, Profile::Button &button, Macro &macr
 		else if (type == "loop") {
 			unsigned int loop_delay;
 			switch (element->QueryUnsignedAttribute ("loop-delay", &loop_delay)) {
-			case XML_NO_ERROR:
+			case XML_SUCCESS:
 				break;
 			case XML_WRONG_ATTRIBUTE_TYPE:
 				Log::error () << "Invalid loop delay value." << std::endl;
