@@ -44,11 +44,11 @@ bool handlePairEvent (const int feature_index, const int function, const std::ve
 			static_cast<unsigned int> (function),
 			params);
 	}
-	catch (HIDPP10::Error e) {
+	catch (HIDPP10::Error &e) {
 		if (e.errorCode () != 9)
 			fprintf (stderr, "Error code %d: %s\n", e.errorCode (), e.what ());
 	}
-	catch (HIDPP20::Error e) {
+	catch (HIDPP20::Error &e) {
 		fprintf (stderr, "Error code %d: %s\n", e.errorCode (), e.what ());
 	}
 	return true;
@@ -119,11 +119,11 @@ int main (int argc, char *argv[])
 			static_cast<unsigned int> (function),
 			params);
 	}
-	catch (HIDPP10::Error e) {
+	catch (HIDPP10::Error &e) {
 		fprintf (stderr, "Error code %d: %s\n", e.errorCode (), e.what ());
 		return e.errorCode ();
 	}
-	catch (HIDPP20::Error e) {
+	catch (HIDPP20::Error &e) {
 		fprintf (stderr, "Error code %d: %s\n", e.errorCode (), e.what ());
 		return e.errorCode ();
 	}
