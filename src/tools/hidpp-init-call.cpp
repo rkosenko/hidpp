@@ -128,17 +128,26 @@ int main (int argc, char *argv[])
 		return e.errorCode ();
 	}
 
+	#ifdef _WIN32
+	typedef void (*SignalHandlerPointer)(int);
+	SignalHandlerPointer oldsa = signal(SIGINT, sigint);
+	#else
 	struct sigaction sa, oldsa;
 	memset (&sa, 0, sizeof (struct sigaction));
 	sa.sa_handler = sigint;
 	sigaction (SIGINT, &sa, &oldsa);
+	#endif
 
 	uint8_t feature = 0x41;
 	std::function<bool (const HIDPP::Report &)> fn = std::bind (handlePairEvent, feature_index, function, params, std::placeholders::_1);
 	dispatcher.get ()->registerEventHandler (device_index, feature, fn);
 
 	dispatcher.get ()->listen ();
+	#ifdef _WIN32
+	signal(SIGINT, oldsa);
+	#else
 	sigaction (SIGINT, &oldsa, nullptr);
+	#endif
 
 	return EXIT_SUCCESS;
 }
