@@ -1,5 +1,5 @@
 [Service]
-ExecStart=/usr/local/bin/hidpp-init-call -d3 /dev/hidraw0 9 3 00 C4 00 00 52
+ExecStart=/usr/local/bin/hidpp20-init-call -d3 /dev/hidraw0 9 3 00 C4 00 00 52
 
 [Install]
 WantedBy=multi-user.target

@@ -29,7 +29,7 @@ set(TOOLS
 	hidpp20-dump-page
 	hidpp20-write-page
 	hidpp20-write-data
-	hidpp-init-call
+	hidpp20-init-call
 )
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 	set(TOOLS ${TOOLS}
