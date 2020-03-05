@@ -286,7 +286,8 @@ int main (int argc, char *argv[])
 					return EXIT_FAILURE;
 				}
 			}
-		}
+		} else
+			dpi_y = 0;
 		ops->set (dpi_x, dpi_y);
 	}
 	else if (op == "info") {
