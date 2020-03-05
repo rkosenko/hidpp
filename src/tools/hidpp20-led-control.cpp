@@ -241,7 +241,7 @@ int main (int argc, char *argv[])
 					print_state(iled.getState (index));
 				}
 				else {
-					auto mode = Modes.value(argv[first_arg+1]);
+					//auto mode = Modes.value(argv[first_arg+1]);
 				}
 			}
 
