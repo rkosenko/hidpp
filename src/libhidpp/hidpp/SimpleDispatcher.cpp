@@ -99,6 +99,14 @@ Report SimpleDispatcher::getReport (int timeout)
 		std::vector<uint8_t> raw_report (Report::MaxDataLength+1);
 		if (0 == _dev.readReport (raw_report, timeout))
 			throw Dispatcher::TimeoutError ();
+
+#ifdef DEBUG
+		printf ("Raw report:");
+		for (uint8_t value: raw_report)
+			printf (" %02hhx", value);
+		printf ("\n");
+#endif
+
 		try {
 			HIDPP::Report report (std::move (raw_report));
 			if (report.checkErrorMessage10 (nullptr, nullptr, nullptr)) {
@@ -107,6 +115,9 @@ Report SimpleDispatcher::getReport (int timeout)
 			if (report.checkErrorMessage20 (nullptr, nullptr, nullptr, nullptr)) {
 				return report;
 			}
+#ifdef DEBUG
+			printf ("Report: %u / %u / %u\n", report.deviceIndex (), report.subID (), report.address ());
+#endif
 			processEvent (report);
 			return report;
 		}
