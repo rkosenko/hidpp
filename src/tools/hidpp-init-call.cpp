@@ -34,6 +34,12 @@ extern "C" {
 #include <string.h>
 }
 
+#ifdef _WIN32
+	#define DEVICE_CONNECTION_NOTIFICATION 0x04;
+#else
+	#define DEVICE_CONNECTION_NOTIFICATION 0x41;
+#endif
+
 std::unique_ptr<HIDPP::SimpleDispatcher> dispatcher;
 std::unique_ptr<HIDPP20::Device> dev;
 
@@ -138,7 +144,7 @@ int main (int argc, char *argv[])
 	sigaction (SIGINT, &sa, &oldsa);
 	#endif
 
-	uint8_t feature = 0x41;
+	uint8_t feature = DEVICE_CONNECTION_NOTIFICATION;
 	std::function<bool (const HIDPP::Report &)> fn = std::bind (handlePairEvent, feature_index, function, params, std::placeholders::_1);
 	dispatcher.get ()->registerEventHandler (device_index, feature, fn);
 
