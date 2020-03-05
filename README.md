@@ -5,7 +5,7 @@ I wrote this library as a personal hack tool for testing Logitech's HID++ protoc
 
 For simpler profiles, you may prefer to use [libratbag](https://github.com/libratbag/libratbag).
 
-Documentation for HID++ 1.0 mice, can be found on [my G500 repository](https://github.com/cvuchener/g500/tree/master/doc). Other varied documents (HID++ 1.0 receivers, HID++ 2.0 devices) from Logitech can be found on [this Google drive](https://drive.google.com/folderview?id=0BxbRzx7vEV7eWmgwazJ3NUFfQ28). Peter Wu has some HID++ 2.0 features documentation on [his website](https://lekensteyn.nl/files/logitech/).
+Documentation for HID++ 1.0 mice, can be found on [cvuchener's G500 repository](https://github.com/cvuchener/g500/tree/master/doc). Other varied documents (HID++ 1.0 receivers, HID++ 2.0 devices) from Logitech can be found on [this Google drive](https://drive.google.com/folderview?id=0BxbRzx7vEV7eWmgwazJ3NUFfQ28). Peter Wu has some HID++ 2.0 features documentation on [his website](https://lekensteyn.nl/files/logitech/).
 
 
 Building
@@ -148,3 +148,6 @@ Used for raw interaction with HID++ 1.0 register *command*. Parameters are hexad
 
 Call the low-level function given by `feature_index` and `function`. Parameters are hexadecimal and default are zeroes.
 
+    hidpp20-init-call *device_path* *feature_index* *function* [*parameters*...]
+
+Used for sending initialization command on device connection (& waking up from the sleep). Options are the same as per `hidpp20-call-function`.
