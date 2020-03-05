@@ -133,7 +133,7 @@ void testRegister (HIDPP10::Device *dev, std::size_t register_size, uint8_t addr
 	try {
 		dev->getRegister (address, nullptr, values);
 		readable = true;
-		printf ("Register 0x%02hhx read  %2lu:", address, register_size);
+		printf ("Register 0x%02hhx read  %2zu:", address, register_size);
 		for (uint8_t value: values)
 			printf (" %02hhx", value);
 		printf ("\n");
@@ -141,7 +141,7 @@ void testRegister (HIDPP10::Device *dev, std::size_t register_size, uint8_t addr
 	catch (HIDPP10::Error &e) {
 		if (e.errorCode () != HIDPP10::Error::InvalidSubID &&
 		    e.errorCode () != HIDPP10::Error::InvalidAddress) {
-			printf ("Register 0x%02hhx read  %2lu: %s (0x%02hhx)\n",
+			printf ("Register 0x%02hhx read  %2zu: %s (0x%02hhx)\n",
 				address, register_size, e.what (), e.errorCode ());
 		}
 	}
@@ -155,7 +155,7 @@ void testRegister (HIDPP10::Device *dev, std::size_t register_size, uint8_t addr
 				std::vector<uint8_t> params (register_size);
 				dev->setRegister (address, params, &results);
 			}
-			printf ("Register 0x%02hhx write %2lu:", address, register_size);
+			printf ("Register 0x%02hhx write %2zu:", address, register_size);
 			for (uint8_t value: results)
 				printf (" %02hhx", value);
 			printf ("\n");
@@ -163,7 +163,7 @@ void testRegister (HIDPP10::Device *dev, std::size_t register_size, uint8_t addr
 		catch (HIDPP10::Error &e) {
 			if (e.errorCode () != HIDPP10::Error::InvalidSubID &&
 			    e.errorCode () != HIDPP10::Error::InvalidAddress) {
-				printf ("Register 0x%02hhx write %2lu: %s (0x%02hhx)\n",
+				printf ("Register 0x%02hhx write %2zu: %s (0x%02hhx)\n",
 					address, register_size, e.what (), e.errorCode ());
 			}
 		}
