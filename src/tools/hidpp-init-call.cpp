@@ -19,7 +19,6 @@
 
 #include <hidpp/SimpleDispatcher.h>
 #include <hidpp20/Device.h>
-#include <hidpp10/Error.h>
 #include <hidpp20/Error.h>
 #include <cstdio>
 #include <memory>
@@ -49,10 +48,6 @@ bool handlePairEvent (const int feature_index, const int function, const std::ve
 		dev.get ()->callFunction (static_cast<uint8_t> (feature_index),
 			static_cast<unsigned int> (function),
 			params);
-	}
-	catch (HIDPP10::Error &e) {
-		if (e.errorCode () != 9)
-			fprintf (stderr, "Error code %d: %s\n", e.errorCode (), e.what ());
 	}
 	catch (HIDPP20::Error &e) {
 		fprintf (stderr, "Error code %d: %s\n", e.errorCode (), e.what ());
@@ -124,10 +119,6 @@ int main (int argc, char *argv[])
 		dev.get ()->callFunction (static_cast<uint8_t> (feature_index),
 			static_cast<unsigned int> (function),
 			params);
-	}
-	catch (HIDPP10::Error &e) {
-		fprintf (stderr, "Error code %d: %s\n", e.errorCode (), e.what ());
-		return e.errorCode ();
 	}
 	catch (HIDPP20::Error &e) {
 		fprintf (stderr, "Error code %d: %s\n", e.errorCode (), e.what ());
